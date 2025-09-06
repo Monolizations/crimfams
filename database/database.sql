@@ -41,13 +41,14 @@ CREATE TABLE leave_requests (
     end_date DATE,
     reason TEXT,
     status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+    admin_note TEXT,
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (faculty_id) REFERENCES users(id)
 );
 
 -- Insert default users for testing
 -- Password: admin123 for admin, password for others
-INSERT INTO users (username, password, role, email) VALUES ('admin', '$2y$10$vS4tO5KVBiUy3583oEGOTOhvgnh.ZR2lSgde6OycJthQFMWQqAwjG', 'ADMIN', 'admin@fams.edu');
+INSERT INTO users (username, password, role, email) VALUES ('admin', '$2y$10$l8f4nJCvQjPNO0pBgSfAHuxbdsd8UHaCGGdcrbnQhplc9U2Xai0La', 'ADMIN', 'admin@fams.edu');
 INSERT INTO users (username, password, role, email) VALUES ('faculty1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'FACULTY', 'faculty1@fams.edu');
 INSERT INTO users (username, password, role, email) VALUES ('secretary1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'SECRETARY', 'secretary1@fams.edu');
 INSERT INTO users (username, password, role, email) VALUES ('programhead1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'PROGRAM_HEAD', 'programhead1@fams.edu');
@@ -57,3 +58,8 @@ INSERT INTO schedules (faculty_id, course_code, room_number, start_time, end_tim
 (2, 'CS101', 'Room 101', '09:00:00', '10:30:00', CURDATE()),
 (2, 'CS102', 'Room 102', '11:00:00', '12:30:00', CURDATE()),
 (4, 'CS201', 'Room 201', '09:00:00', '10:30:00', CURDATE());
+
+-- Sample leave requests
+INSERT INTO leave_requests (faculty_id, start_date, end_date, reason, status) VALUES
+(2, DATE_ADD(CURDATE(), INTERVAL 14 DAY), DATE_ADD(CURDATE(), INTERVAL 16 DAY), 'Family vacation', 'Pending'),
+(4, DATE_ADD(CURDATE(), INTERVAL 21 DAY), DATE_ADD(CURDATE(), INTERVAL 23 DAY), 'Medical appointment', 'Approved');

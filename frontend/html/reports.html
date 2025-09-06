@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - CRIM FAMS</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#007bff">
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            <header class="bg-white shadow-sm p-3 d-flex align-items-center">
+                <button class="btn btn-outline-secondary d-md-none me-2" onclick="toggleSidebar()">☰</button>
+                <h4 class="mb-0" id="page-title">Reports</h4>
+            </header>
+            <main class="p-4">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Generate Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="reportForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Report Type</label><br>
+                                        <input type="radio" name="report_type" value="individual" checked> 🔘 Individual Attendance<br>
+                                        <input type="radio" name="report_type" value="daily"> 🔘 Daily Absences
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="start_date" class="form-label">📅 Start Date</label>
+                                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="end_date" class="form-label">📅 End Date</label>
+                                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="program" class="form-label">🔽 Program</label>
+                                            <select class="form-select" id="program" name="program">
+                                                <option>All</option><option>CS</option><option>IT</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="faculty" class="form-label">🔽 Faculty</label>
+                                            <select class="form-select" id="faculty" name="faculty">
+                                                <option>All</option>
+                                                <!-- Faculty options will be loaded dynamically -->
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">📊 Generate Report</button>
+                                </form>
+
+                                <div id="report-results" style="display: none;">
+                                    <hr>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6>Report Results</h6>
+                                        <button id="export-btn" class="btn btn-success">🖨️ Export to CSV</button>
+                                    </div>
+                                    <div id="report-table-container">
+                                        <!-- Report table will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/dashboard.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let reportData = [];
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+        }
+
+        function loadFaculties() {
+            // This would typically fetch from an API
+            const facultySelect = document.getElementById('faculty');
+            // For now, add some sample options
+            const sampleFaculties = ['John Doe', 'Jane Smith', 'Bob Johnson'];
+            sampleFaculties.forEach(faculty => {
+                const option = document.createElement('option');
+                option.value = faculty.toLowerCase().replace(' ', '');
+                option.textContent = faculty;
+                facultySelect.appendChild(option);
+            });
+        }
+
+        function generateReport() {
+            const formData = new FormData(document.getElementById('reportForm'));
+            const reportType = formData.get('report_type');
+            const startDate = formData.get('start_date');
+            const endDate = formData.get('end_date');
+            const program = formData.get('program');
+            const faculty = formData.get('faculty');
+
+            // Simulate API call - in real implementation, this would fetch from backend
+            reportData = [
+                { date: '2024-01-15', username: 'John Doe', course_code: 'CS101', status: 'Present' },
+                { date: '2024-01-15', username: 'Jane Smith', course_code: 'IT101', status: 'Present' },
+                { date: '2024-01-16', username: 'John Doe', course_code: 'CS101', status: 'Absent' },
+                { date: '2024-01-16', username: 'Jane Smith', course_code: 'IT101', status: 'Present' }
+            ];
+
+            renderReportTable();
+            document.getElementById('report-results').style.display = 'block';
+        }
+
+        function renderReportTable() {
+            const container = document.getElementById('report-table-container');
+            if (reportData.length === 0) {
+                container.innerHTML = '<p>No data found for the selected criteria.</p>';
+                return;
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-striped"><thead><tr>';
+            html += '<th>Date</th><th>Faculty</th><th>Course</th><th>Status</th></tr></thead><tbody>';
+
+            reportData.forEach(row => {
+                html += `<tr>
+                    <td>${row.date}</td>
+                    <td>${row.username}</td>
+                    <td>${row.course_code}</td>
+                    <td>${row.status}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function exportToCSV() {
+            if (reportData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const headers = ['Date', 'Faculty', 'Course', 'Status'];
+            const csvContent = [
+                headers.join(','),
+                ...reportData.map(row => [row.date, row.username, row.course_code, row.status].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'report.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Event listeners
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            generateReport();
+        });
+
+        document.getElementById('export-btn').addEventListener('click', exportToCSV);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFaculties();
+        });
+    </script>
+</body>
+</html>

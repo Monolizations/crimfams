@@ -1,0 +1,303 @@
+<?php
+
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../src/controllers/AuthController.php';
+require_once __DIR__ . '/../src/models/Database.php';
+$db = Database::getInstance()->getConnection();
+
+$request = $_SERVER['REQUEST_URI'];
+$base_path = ''; // Adjust if needed
+
+$path = str_replace($base_path, '', $request);
+$path = explode('?', $path)[0];
+
+// Handle static file serving for frontend
+if (preg_match('/\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|html|webmanifest)$/', $path)) {
+    $file_path = __DIR__ . '/../frontend' . $path;
+    error_log("Requested path: $path");
+    error_log("File path: $file_path");
+    error_log("File exists: " . (file_exists($file_path) ? 'yes' : 'no'));
+
+    if (file_exists($file_path)) {
+        $mime_types = [
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'ico' => 'image/x-icon',
+            'svg' => 'image/svg+xml',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject',
+            'html' => 'text/html',
+            'webmanifest' => 'application/manifest+json'
+        ];
+
+        $ext = pathinfo($file_path, PATHINFO_EXTENSION);
+        if (isset($mime_types[$ext])) {
+            header('Content-Type: ' . $mime_types[$ext]);
+        }
+
+        readfile($file_path);
+        exit;
+    } else {
+        error_log("File not found: $file_path");
+    }
+}
+
+// Handle API endpoints
+if (strpos($path, '/api/') === 0) {
+    header('Content-Type: application/json');
+
+    switch ($path) {
+        case '/api/login':
+            $authController = new AuthController();
+            $authController->apiLogin();
+            break;
+
+        case '/api/logout':
+            $authController = new AuthController();
+            $authController->logout();
+            echo json_encode(['success' => true]);
+            break;
+
+        case '/api/dashboard':
+            if (!isset($_SESSION['user_id'])) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Unauthorized']);
+                exit;
+            }
+            $role = $_SESSION['role'];
+            $user_id = $_SESSION['user_id'];
+
+            $schedules = [];
+            if ($role === 'FACULTY') {
+                $stmt = $db->prepare('SELECT * FROM schedules WHERE faculty_id = ? AND date = CURDATE() ORDER BY start_time');
+                $stmt->execute([$user_id]);
+                $schedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } elseif (in_array($role, ['PROGRAM_HEAD', 'SECRETARY', 'ADMIN'])) {
+                $query = 'SELECT s.*, u.username FROM schedules s JOIN users u ON s.faculty_id = u.id WHERE s.date = CURDATE() ORDER BY s.start_time';
+                $stmt = $db->query($query);
+                $schedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            echo json_encode(['schedules' => $schedules]);
+            break;
+
+        case '/api/leave':
+            if (!isset($_SESSION['user_id'])) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Unauthorized']);
+                exit;
+            }
+            $role = $_SESSION['role'];
+            $user_id = $_SESSION['user_id'];
+
+            $requests = [];
+            if ($role === 'FACULTY') {
+                $stmt = $db->prepare('SELECT lr.*, u.username FROM leave_requests lr LEFT JOIN users u ON lr.faculty_id = u.id WHERE lr.faculty_id = ? ORDER BY lr.requested_at DESC');
+                $stmt->execute([$user_id]);
+                $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } elseif (in_array($role, ['ADMIN', 'SECRETARY'])) {
+                $stmt = $db->query('SELECT lr.*, u.username FROM leave_requests lr JOIN users u ON lr.faculty_id = u.id ORDER BY lr.requested_at DESC');
+                $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            echo json_encode(['requests' => $requests]);
+            break;
+
+        case '/api/leave/request':
+            if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'FACULTY') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                exit;
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $user_id = $_SESSION['user_id'];
+            $start_date = $data['start_date'];
+            $end_date = $data['end_date'];
+            $reason = $data['reason'];
+
+            // Validate minimum 2 weeks
+            $min_date = date('Y-m-d', strtotime('+2 weeks'));
+            if ($start_date >= $min_date) {
+                $stmt = $db->prepare('INSERT INTO leave_requests (faculty_id, start_date, end_date, reason) VALUES (?, ?, ?, ?)');
+                $stmt->execute([$user_id, $start_date, $end_date, $reason]);
+                echo json_encode(['success' => true]);
+            } else {
+                http_response_code(400);
+                echo json_encode(['error' => 'Start date must be at least 2 weeks from now']);
+            }
+            break;
+
+        case '/api/leave/approve':
+            if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['ADMIN', 'SECRETARY'])) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                exit;
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $stmt = $db->prepare('UPDATE leave_requests SET status = ? WHERE id = ?');
+            $stmt->execute(['Approved', $data['id']]);
+            echo json_encode(['success' => true]);
+            break;
+
+        case '/api/leave/reject':
+            if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['ADMIN', 'SECRETARY'])) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                exit;
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $stmt = $db->prepare('UPDATE leave_requests SET status = ?, admin_note = ? WHERE id = ?');
+            $stmt->execute(['Rejected', $data['admin_note'], $data['id']]);
+            echo json_encode(['success' => true]);
+            break;
+
+        default:
+            http_response_code(404);
+            echo json_encode(['error' => 'API endpoint not found']);
+            break;
+    }
+    exit;
+}
+
+// Handle API routes
+if (strpos($path, '/api/') === 0) {
+    $api_file = __DIR__ . $path;
+    if (file_exists($api_file)) {
+        include $api_file;
+        exit;
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'API endpoint not found']);
+        exit;
+    }
+}
+
+// For non-API routes, let the web server handle static files
+// If no static file exists, serve index.html for SPA routing
+if ($path === '/' || $path === '') {
+    $index_file = __DIR__ . '/index.html';
+    if (file_exists($index_file)) {
+        header('Content-Type: text/html');
+        readfile($index_file);
+        exit;
+    }
+}
+    case '/faculties':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $page = 'Faculties';
+        include __DIR__ . '/../resources/views/dashboard.php';
+        break;
+    case '/classrooms':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $role = $_SESSION['role'];
+        if (!in_array($role, ['SECRETARY', 'ADMIN'])) {
+            http_response_code(403);
+            echo 'Access denied';
+            exit;
+        }
+        include __DIR__ . '/../resources/views/classrooms.php';
+        break;
+    case '/qr-scanner':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $page = 'QR Scanner';
+        include __DIR__ . '/../resources/views/dashboard.php';
+        break;
+    case '/qr-generator':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        include __DIR__ . '/../resources/views/qr_generator.php';
+        break;
+    case '/office-logbook':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $role = $_SESSION['role'];
+        if (!in_array($role, ['PROGRAM_HEAD', 'ADMIN'])) {
+            http_response_code(403);
+            echo 'Access denied';
+            exit;
+        }
+        include __DIR__ . '/../resources/views/office_logbook.php';
+        break;
+    case '/reports':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        include __DIR__ . '/../frontend_php/reports.php';
+        break;
+    case '/profile':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $page = 'Profile';
+        include __DIR__ . '/../resources/views/dashboard.php';
+        break;
+    case '/settings':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $page = 'Settings';
+        include __DIR__ . '/../resources/views/dashboard.php';
+        break;
+    case '/qr-scanner':
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        include __DIR__ . '/../resources/views/qr_scanner.php';
+        break;
+    case '/api/scan':
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents('php://input'), true);
+        $user_id = $_SESSION['user_id'];
+        // Process scan
+        if ($data['action'] === 'office_log') {
+            // Handle office log
+            echo json_encode(['success' => true, 'message' => '✅ Time-in recorded at ' . date('H:i', strtotime($data['timestamp']))]);
+        } elseif ($data['action'] === 'classroom_checkin') {
+            // Handle classroom checkin
+            echo json_encode(['success' => true, 'message' => '✅ Success! Checked in to ' . $data['roomId']]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+        }
+        break;
+    case '/api/login':
+        $authController = new AuthController();
+        $authController->apiLogin();
+        break;
+    default:
+        http_response_code(404);
+        echo '404 Not Found';
+        break;
+}
+
+?>

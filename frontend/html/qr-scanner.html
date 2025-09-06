@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner - CRIM FAMS</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#007bff">
+    <style>
+        #scanner-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+        #reader {
+            width: 100%;
+            height: 100%;
+        }
+        #viewfinder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 18px;
+            text-align: center;
+            z-index: 10;
+        }
+        #message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            z-index: 10;
+        }
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 5;
+        }
+        .scanner-overlay::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px solid #fff;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            <header class="bg-white shadow-sm p-3 d-flex align-items-center">
+                <button class="btn btn-outline-secondary d-md-none me-2" onclick="toggleSidebar()">☰</button>
+                <h4 class="mb-0">QR Scanner</h4>
+                <div class="ms-auto">
+                    <select id="scan-type" class="form-select form-select-sm">
+                        <option value="office">Office Time-In/Out</option>
+                        <option value="classroom">Classroom Check-In</option>
+                    </select>
+                </div>
+            </header>
+            <main class="p-0">
+                <div id="scanner-container">
+                    <div id="instructions">Scan Department QR Code for Time-In/Out</div>
+                    <div id="reader"></div>
+                    <div id="message"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/dashboard.js"></script>
+    <script src="../js/html5-qrcode.min.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let html5QrcodeScanner;
+        const message = document.getElementById('message');
+        const instructions = document.getElementById('instructions');
+        const scanTypeSelect = document.getElementById('scan-type');
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+        }
+
+        function initScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear();
+            }
+
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", {
+                    fps: 10,
+                    qrbox: 250,
+                    aspectRatio: 1.0
+                }
+            );
+
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Stop scanning
+            html5QrcodeScanner.clear();
+            processQR(decodedText);
+        }
+
+        function onScanFailure(error) {
+            // console.warn(`Code scan error = ${error}`);
+        }
+
+        function processQR(data) {
+            try {
+                const qrData = JSON.parse(data);
+                const scanType = scanTypeSelect.value;
+
+                if (qrData.type === 'department_log' && scanType === 'office') {
+                    // Office time-in/out
+                    sendToServer({ action: 'office_log', timestamp: new Date().toISOString() });
+                } else if (qrData.type === 'classroom_checkin' && scanType === 'classroom') {
+                    // Classroom check-in
+                    sendToServer({ action: 'classroom_checkin', roomId: qrData.roomId, timestamp: new Date().toISOString() });
+                } else {
+                    message.textContent = 'Invalid QR code for this scan type.';
+                    setTimeout(() => initScanner(), 3000);
+                }
+            } catch (e) {
+                message.textContent = 'Invalid QR code format.';
+                setTimeout(() => initScanner(), 3000);
+            }
+        }
+
+        function sendToServer(data) {
+            const token = localStorage.getItem('token');
+            fetch('/crimfams/api/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    message.textContent = result.message;
+                    setTimeout(() => window.location.href = 'dashboard.html', 2000);
+                } else {
+                    message.textContent = 'Error: ' + result.message;
+                    setTimeout(() => initScanner(), 3000);
+                }
+            })
+            .catch(err => {
+                // Offline: save to localStorage for later sync
+                saveOffline(data);
+                message.textContent = 'Check-in saved. Will sync when online.';
+                setTimeout(() => window.location.href = 'dashboard.html', 2000);
+            });
+        }
+
+        function saveOffline(data) {
+            // Save to localStorage for offline sync
+            const offlineData = JSON.parse(localStorage.getItem('offlineScans') || '[]');
+            offlineData.push({ ...data, timestamp: new Date().toISOString() });
+            localStorage.setItem('offlineScans', JSON.stringify(offlineData));
+        }
+
+        // Update instructions when scan type changes
+        scanTypeSelect.addEventListener('change', function() {
+            const type = this.value;
+            if (type === 'office') {
+                instructions.textContent = 'Scan Department QR Code for Time-In/Out';
+            } else {
+                instructions.textContent = 'Scan Classroom QR Code for Check-In';
+            }
+            initScanner();
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initScanner();
+        });
+    </script>
+</body>
+</html>

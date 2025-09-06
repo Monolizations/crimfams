@@ -52,7 +52,7 @@ function updateNavigationVisibility() {
 
 async function loadDashboardContent() {
     try {
-        const response = await fetch(`${window.location.origin}/crimfams/api/dashboard.php`, {
+        const response = await fetch('/crimfams/api/dashboard.php', {
             method: 'GET',
             credentials: 'include'
         });

@@ -28,7 +28,7 @@
                     </a>
                 </li>
                 <?php endif; ?>
-                <?php if (in_array($_SESSION['role'], ['SECRETARY', 'PROGRAM_HEAD', 'ADMIN'])): ?>
+                <?php if (in_array($_SESSION['role'], ['SECRETARY', 'PROGRAM_HEAD', 'ADMIN', 'FACULTY'])): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?php echo BASE_URL; ?>/leave">
                         <i class="fas fa-calendar-times"></i> Leave Management

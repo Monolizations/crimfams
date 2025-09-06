@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Handle API routes
+RewriteRule ^api/(.*)$ api/$1 [L]
+
+# Handle static files
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Handle views directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^views/(.*)$ views/$1 [L]

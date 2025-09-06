@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Generator - CRIM FAMS</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#007bff">
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            <header class="bg-white shadow-sm p-3 d-flex align-items-center">
+                <button class="btn btn-outline-secondary d-md-none me-2" onclick="toggleSidebar()">☰</button>
+                <h4 class="mb-0">QR Code Generator</h4>
+            </header>
+            <main class="p-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Generate QR Code</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="qrForm">
+                                    <div class="mb-3">
+                                        <label for="qrType" class="form-label">Type</label>
+                                        <select class="form-select" id="qrType" name="qrType">
+                                            <option value="department_log">Department Log (Office Time-In/Out)</option>
+                                            <option value="classroom_checkin">Classroom Check-In</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3" id="roomField" style="display: none;">
+                                        <label for="roomId" class="form-label">Room ID</label>
+                                        <input type="text" class="form-control" id="roomId" name="roomId" placeholder="e.g., Main South 203" value="Main South 203">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Generate QR Code</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>QR Code</h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <div id="status" class="mb-3"></div>
+                                <div id="qrCanvas"></div>
+                                <br>
+                                <a id="downloadBtn" class="btn btn-secondary mt-3" style="display: none;">Download QR Code</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/qrcode.min.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script>
+        const qrForm = document.getElementById('qrForm');
+        const qrType = document.getElementById('qrType');
+        const roomField = document.getElementById('roomField');
+        const qrCanvas = document.getElementById('qrCanvas');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+        }
+
+        qrType.addEventListener('change', () => {
+            if (qrType.value === 'classroom_checkin') {
+                roomField.style.display = 'block';
+            } else {
+                roomField.style.display = 'none';
+            }
+        });
+
+        qrForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            status.textContent = 'Generating QR Code...';
+            let qrData;
+
+            if (qrType.value === 'department_log') {
+                qrData = JSON.stringify({ type: 'department_log' });
+            } else {
+                const roomId = document.getElementById('roomId').value;
+                if (!roomId) {
+                    alert('Please enter Room ID');
+                    status.textContent = '';
+                    return;
+                }
+                qrData = JSON.stringify({ type: 'classroom_checkin', roomId: roomId });
+            }
+
+            if (typeof QRCode !== 'undefined') {
+                qrCanvas.innerHTML = '';
+                new QRCode(qrCanvas, {
+                    text: qrData,
+                    width: 256,
+                    height: 256
+                });
+                status.textContent = 'QR Code generated!';
+                const img = qrCanvas.querySelector('img');
+                if (img) {
+                    downloadBtn.href = img.src;
+                    downloadBtn.download = 'qr-code.png';
+                    downloadBtn.style.display = 'block';
+                }
+            } else {
+                alert('QRCode library not loaded');
+                status.textContent = 'QRCode library not loaded';
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'qr-code.png';
+            link.href = qrCanvas.querySelector('img').src;
+            link.click();
+        });
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        // Service Worker registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedules - CRIM FAMS</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#007bff">
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            <header class="bg-white shadow-sm p-3 d-flex align-items-center">
+                <button class="btn btn-outline-secondary d-md-none me-2" onclick="toggleSidebar()">☰</button>
+                <h4 class="mb-0" id="page-title">Schedules</h4>
+            </header>
+            <main class="p-4">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Schedules Management</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 id="schedule-title">Schedules</h5>
+                                    <button class="btn btn-primary" id="add-schedule-btn" style="display: none;" data-bs-toggle="modal" data-bs-target="#scheduleModal" onclick="resetModal()">➕ Add New Schedule</button>
+                                </div>
+
+                                <div id="schedules-container">
+                                    <!-- Schedules will be loaded here -->
+                                    <div class="text-center">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Add New Schedule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="schedule-form">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" id="modalAction" value="add">
+                        <input type="hidden" name="id" id="scheduleId">
+                        <div class="mb-3">
+                            <label for="faculty_id" class="form-label">🔽 Select Faculty</label>
+                            <select class="form-select" id="faculty_id" name="faculty_id" required>
+                                <!-- Faculty options will be loaded dynamically -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="course_code" class="form-label">🔽 Select Course</label>
+                            <select class="form-select" id="course_code" name="course_code" required>
+                                <option>CS101</option><option>CS102</option><option>IT101</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="day_of_week" class="form-label">📅 Day of Week</label>
+                            <select class="form-select" id="day_of_week" name="day_of_week" required>
+                                <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="start_time" class="form-label">🕒 Start Time</label>
+                            <input type="time" class="form-control" id="start_time" name="start_time" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="end_time" class="form-label">🕒 End Time</label>
+                            <input type="time" class="form-control" id="end_time" name="end_time" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="room_number" class="form-label">🔽 Select Classroom</label>
+                            <select class="form-select" id="room_number" name="room_number" required>
+                                <option>Room 101</option><option>Room 102</option><option>Room 201</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">💾 Save Schedule</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script>
+        let userRole = '';
+        let schedulesData = [];
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+        }
+
+        function resetModal() {
+            document.getElementById('modalTitle').textContent = 'Add New Schedule';
+            document.getElementById('modalAction').value = 'add';
+            document.getElementById('scheduleId').value = '';
+            document.getElementById('faculty_id').value = '';
+            document.getElementById('course_code').value = '';
+            document.getElementById('day_of_week').value = '';
+            document.getElementById('start_time').value = '';
+            document.getElementById('end_time').value = '';
+            document.getElementById('room_number').value = '';
+        }
+
+        function editSchedule(id, faculty_id, course_code, room_number, day_of_week, date, start_time, end_time) {
+            document.getElementById('modalTitle').textContent = 'Edit Schedule';
+            document.getElementById('modalAction').value = 'edit';
+            document.getElementById('scheduleId').value = id;
+            document.getElementById('faculty_id').value = faculty_id;
+            document.getElementById('course_code').value = course_code;
+            document.getElementById('room_number').value = room_number;
+            document.getElementById('day_of_week').value = day_of_week;
+            document.getElementById('start_time').value = start_time;
+            document.getElementById('end_time').value = end_time;
+        }
+
+        function loadSchedules() {
+            fetch('/api/dashboard', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.schedules) {
+                    schedulesData = data.schedules;
+                    renderSchedules();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading schedules:', error);
+                document.getElementById('schedules-container').innerHTML = '<p class="text-danger">Error loading schedules</p>';
+            });
+        }
+
+        function renderSchedules() {
+            const container = document.getElementById('schedules-container');
+            if (schedulesData.length === 0) {
+                container.innerHTML = '<p>No schedules found.</p>';
+                return;
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-striped"><thead><tr>';
+            html += '<th>Faculty</th><th>Course</th><th>Room</th><th>Day</th><th>Date</th><th>Time</th>';
+            if (['ADMIN', 'SECRETARY', 'PROGRAM_HEAD'].includes(userRole)) {
+                html += '<th>Actions</th>';
+            }
+            html += '</tr></thead><tbody>';
+
+            schedulesData.forEach(schedule => {
+                html += `<tr>
+                    <td>${schedule.username || 'N/A'}</td>
+                    <td>${schedule.course_code}</td>
+                    <td>${schedule.room_number}</td>
+                    <td>${schedule.day_of_week || 'N/A'}</td>
+                    <td>${schedule.date}</td>
+                    <td>${schedule.start_time} - ${schedule.end_time}</td>`;
+                if (['ADMIN', 'SECRETARY', 'PROGRAM_HEAD'].includes(userRole)) {
+                    html += `<td>
+                        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleModal" onclick="editSchedule(${schedule.id}, '${schedule.faculty_id}', '${schedule.course_code}', '${schedule.room_number}', '${schedule.day_of_week}', '${schedule.date}', '${schedule.start_time}', '${schedule.end_time}')">✏️ Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteSchedule(${schedule.id})">🗑️ Delete</button>
+                    </td>`;
+                }
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function deleteSchedule(id) {
+            if (confirm('Delete this schedule?')) {
+                // Implement delete functionality
+                console.log('Delete schedule:', id);
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get user role from localStorage or API
+            userRole = localStorage.getItem('userRole') || 'FACULTY';
+            document.getElementById('page-title').textContent = userRole + ' - ' + (['PROGRAM_HEAD', 'SECRETARY', 'ADMIN'].includes(userRole) ? 'Master Schedule' : 'Schedules');
+            document.getElementById('schedule-title').textContent = ['PROGRAM_HEAD', 'SECRETARY', 'ADMIN'].includes(userRole) ? 'Master Schedule' : 'Schedules';
+
+            // Show/hide navigation based on role
+            if (['ADMIN', 'SECRETARY', 'PROGRAM_HEAD'].includes(userRole)) {
+                document.getElementById('add-schedule-btn').style.display = 'block';
+            }
+
+            loadSchedules();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sidebar Test - CRIM FAMS</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            <header class="bg-white shadow-sm p-3">
+                <h4 class="mb-0">Sidebar Component Test</h4>
+            </header>
+            <main class="p-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Test Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>✅ Sidebar component loaded successfully!</p>
+                        <p>✅ Navigation items should be visible based on user role</p>
+                        <p>✅ Active page should be highlighted</p>
+                        <p>✅ Logout functionality should work</p>
+
+                        <div class="mt-4">
+                            <h6>Test User Roles:</h6>
+                            <button class="btn btn-outline-primary me-2" onclick="testRole('ADMIN')">Test Admin</button>
+                            <button class="btn btn-outline-secondary me-2" onclick="testRole('FACULTY')">Test Faculty</button>
+                            <button class="btn btn-outline-success me-2" onclick="testRole('SECRETARY')">Test Secretary</button>
+                            <button class="btn btn-outline-info" onclick="testRole('PROGRAM_HEAD')">Test Program Head</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script>
+        function testRole(role) {
+            if (window.sidebarManager) {
+                window.sidebarManager.updateNavigationVisibility(role);
+                alert(`Navigation updated for ${role} role`);
+            }
+        }
+    </script>
+</body>
+</html>

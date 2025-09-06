@@ -34,13 +34,33 @@ class AuthController {
 
     public function apiLogin() {
         header('Content-Type: application/json');
-        $data = json_decode(file_get_contents('php://input'), true);
-        $username = $data['username'] ?? '';
-        $password = $data['password'] ?? '';
+
+        // Handle both JSON and form data
+        if ($_SERVER['CONTENT_TYPE'] === 'application/json') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $username = $data['username'] ?? '';
+            $password = $data['password'] ?? '';
+        } else {
+            $username = $_POST['username'] ?? '';
+            $password = $_POST['password'] ?? '';
+        }
 
         if ($this->auth->login($username, $password)) {
-            echo json_encode(['success' => true, 'message' => 'Login successful']);
+            $user = $this->auth->getCurrentUser();
+            error_log('Login successful for user: ' . $user['username']);
+            error_log('Session ID: ' . session_id());
+            echo json_encode([
+                'success' => true,
+                'message' => 'Login successful',
+                'user' => [
+                    'id' => $user['id'],
+                    'username' => $user['username'],
+                    'role' => $user['role'],
+                    'email' => $user['email']
+                ]
+            ]);
         } else {
+            error_log('Login failed for username: ' . $username);
             http_response_code(401);
             echo json_encode(['success' => false, 'message' => 'Invalid credentials']);
         }
